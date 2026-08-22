@@ -3,7 +3,7 @@ from llm_handler import build_prompt, ask_llm
 
 
 def run():
-    print("=== AI CFO System ===\n")
+    print("=== AI Based CFO System ===\n")
 
     # Step 1: Get startup data
     startup = get_startup_input()
