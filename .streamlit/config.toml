@@ -1,0 +1,12 @@
+[theme]
+base = "dark"
+primaryColor = "#22C55E" # Neon Green
+backgroundColor = "#04050B" # Deep Obsidian
+secondaryBackgroundColor = "#0B0E14" # Dark Slate
+textColor = "#F8FAFC"
+font = "sans serif"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
