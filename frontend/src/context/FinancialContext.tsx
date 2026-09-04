@@ -75,22 +75,40 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Refresh financial metrics
+  // Ref to always hold the latest data for manual refresh calls,
+  // so the refresh callback itself never needs to be recreated.
+  const dataRef = React.useRef(data);
+  dataRef.current = data;
+
+  // Manual refresh (button clicks) — stable reference, never recreated
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiCalculate(data);
+      const res = await apiCalculate(dataRef.current);
       setMetrics(res.metrics);
     } catch (error) {
       console.error("Calculation failed", error);
     } finally {
       setLoading(false);
     }
-  }, [data]);
+  }, []);
 
+  // Auto-refresh when data changes — self-contained, only depends on `data`
   useEffect(() => {
-    refresh();
-  }, [data, refresh]);
+    let cancelled = false;
+    setLoading(true);
+    apiCalculate(data)
+      .then((res) => {
+        if (!cancelled) setMetrics(res.metrics);
+      })
+      .catch((error) => {
+        console.error("Calculation failed", error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [data]);
 
   // Load sessions list from backend
   const refreshSessions = useCallback(async () => {

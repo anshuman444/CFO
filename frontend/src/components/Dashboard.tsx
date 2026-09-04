@@ -161,6 +161,20 @@ const Dashboard = () => {
     };
   }, [data, metrics, activeScenario, levers]);
 
+  // Filter projection slice based on selected time horizon — MUST be memoized
+  // to prevent recharts from seeing a new array reference on every render,
+  // which restarts its internal animation setState and causes an infinite loop.
+  const visibleProjection = useMemo(
+    () => (model ? model.projection.slice(0, timeHorizon) : []),
+    [model, timeHorizon]
+  );
+
+  // Pre-memoize the 6-month slice for the Revenue & Burn composed chart
+  const sixMonthProjection = useMemo(
+    () => visibleProjection.slice(0, 6),
+    [visibleProjection]
+  );
+
   if (!metrics || !model) {
     return (
       <div className="card h-[400px] flex items-center justify-center">
@@ -174,9 +188,6 @@ const Dashboard = () => {
 
   const isPastSafetyWindow = model.calculatedRunway < 6;
   const safetyDeficitMonths = (6 - model.calculatedRunway).toFixed(1);
-
-  // Filter projection slice based on selected time horizon
-  const visibleProjection = model.projection.slice(0, timeHorizon);
 
   // Expense breakdown percentages
   const headcountBurn = Math.round(model.effectiveBurn * 0.68);
@@ -546,7 +557,7 @@ const Dashboard = () => {
             </h4>
             <div className="h-[140px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={visibleProjection.slice(0, 6)} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                <ComposedChart data={sixMonthProjection} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
                   <XAxis dataKey="month" axisLine={{ stroke: 'var(--line)' }} tick={{ fill: 'var(--ink-muted)', fontSize: 10 }} />
                   <YAxis axisLine={false} tick={{ fill: 'var(--ink-muted)', fontSize: 10 }} tickFormatter={(v) => `$${v/1000}k`} width={40} />

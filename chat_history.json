@@ -380,5 +380,63 @@
                 "content": "Connection Error: HTTPConnectionPool(host='127.0.0.1', port=1236): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001C7C36D3A90>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')). Ensure your local server is running on port 1235 and 'v1/chat/completions' is enabled."
             }
         ]
+    },
+    "session-1788549512560-c4e928b": {
+        "last_updated": "2026-09-05T00:48:51.433332",
+        "startup_data": {
+            "name": "Nimbus Labs",
+            "revenue": 120000.0,
+            "burn": 85000.0,
+            "cash": 320000.0,
+            "cogs": 24000.0,
+            "opex": 61000.0,
+            "ltv": 1200.0,
+            "cac": 350.0,
+            "churn": 2.5,
+            "new_revenue_pm": 15000.0,
+            "growth_rate": 12.0,
+            "employees": 24,
+            "revenue_per_month": 120000.0,
+            "cash_in_bank": 320000.0
+        },
+        "messages": [
+            {
+                "role": "user",
+                "content": "Runway & cash sensitivity analysis"
+            },
+            {
+                "role": "assistant",
+                "content": "To analyze runway and cash sensitivity, I'll need to break down our current financial situation.\n\n**Current Runway:**\nWe have a 99-month runway, which means we can sustain operations for approximately 9 years with our current cash reserves. This is based on our average monthly burn rate of $0 (since it's not provided, I'll assume it remains at $0).\n\n**Cash Sensitivity Analysis:**\n\nTo assess the impact of changes in our burn rate or revenue on our runway, let's consider a few scenarios:\n\n1. **Increased Burn Rate:** If we increase our burn rate by 10% per month (a relatively aggressive assumption), our new monthly burn would be $33.33 ($0 \\* 1.1). This would reduce our runway to approximately 94 months.\n2. **Decreased Burn Rate:** Conversely, if we decrease our burn rate by 10% per month, our new monthly burn would be $27.78 ($0 \\* 0.9). This would extend our runway to around 112 months.\n3. **Revenue Growth:** If we experience a 12% growth in revenue (our current growth rate), our new monthly revenue would be approximately $132,000 ($120,000 \\* 1.12). This could potentially stretch our runway by several months.\n\nTo better understand the impact of these changes, I'd like to ask:\n\n- Are there any specific scenarios or assumptions you'd like me to consider for this analysis?\n- Would you like me to explore other financial metrics that might be relevant in this context?"
+            }
+        ]
+    },
+    "session-1788549910760-br2nkq3": {
+        "last_updated": "2026-09-05T01:02:57.873619",
+        "startup_data": {
+            "name": "lumenxo",
+            "revenue": 1000.0,
+            "burn": 8500.0,
+            "cash": 20000.0,
+            "cogs": 24000.0,
+            "opex": 61000.0,
+            "ltv": 1500.0,
+            "cac": 500.0,
+            "churn": 2.5,
+            "new_revenue_pm": 1000.0,
+            "growth_rate": 6.0,
+            "employees": 12,
+            "revenue_per_month": 1000.0,
+            "cash_in_bank": 20000.0
+        },
+        "messages": [
+            {
+                "role": "user",
+                "content": "next we have to plan for product and marketing how much fund we should invest in that"
+            },
+            {
+                "role": "assistant",
+                "content": "Before we dive into allocating funds, let's take a step back and consider our current financial situation.\n\nWe're in an EXPANSION PHASE with a CRITICAL risk level, which means we need to be cautious with our spending. Our Runway is only 0.2 months, indicating that we have limited time to generate revenue before we run out of cash.\n\nGiven this context, I'd recommend allocating a smaller percentage of our available funds towards Product and Marketing compared to other areas.\n\nLet's assume we want to allocate X% of our monthly burn rate for Product and Marketing. Since our Burn Rate is $0.00, we don't have any existing expenses in this category. However, considering we need to invest in growth, I'd suggest allocating at least 10-15% of our available funds towards Product and Marketing.\n\nTo give you a more concrete number, let's assume we have $20,000 in cash on hand. If we allocate 12.5% of that amount for Product and Marketing, we'd get:\n\n$20,000 x 0.125 = $2,500\n\nThis would be a relatively conservative allocation, considering our growth rate is 6.0%, which indicates potential revenue growth.\n\nHowever, before making any final decisions, I have a few questions to clarify our priorities:\n\n1. What are the top product development priorities for the next quarter?\n2. Do we have any specific marketing channels or campaigns in mind that we want to focus on?\n\nOnce we have a better understanding of these priorities, we can refine our allocation and make a more informed decision."
+            }
+        ]
     }
 }
