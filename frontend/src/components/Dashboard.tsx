@@ -1,581 +1,655 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useFinancials } from '@/context/FinancialContext';
+import gsap from 'gsap';
 import {
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  ShieldCheck,
-  Flame,
-  Gauge,
-  Target,
-  ArrowUpRight,
-  ArrowDownRight,
-  DollarSign,
-  BarChart3,
-  Zap,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-} from 'lucide-react';
-import {
-  Bar,
-  Line,
+  AreaChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   ComposedChart,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  AreaChart,
-  RadialBarChart,
-  RadialBar,
-  BarChart,
+  Bar,
   ReferenceLine,
 } from 'recharts';
 
-// ═══ ANIMATED COUNTER HOOK ═══
-function useAnimatedValue(target: number, duration = 1400) {
-  const [value, setValue] = useState(0);
-  const frameRef = useRef<number | undefined>(undefined);
+// ═══ GSAP ANIMATED NUMBER COMPONENT ═══
+function GsapNumber({
+  value,
+  prefix = '',
+  suffix = '',
+  decimals = 1,
+  className = '',
+}: {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  decimals?: number;
+  className?: string;
+}) {
+  const [displayVal, setDisplayVal] = useState(value);
+  const tweenRef = useRef<{ val: number }>({ val: value });
 
   useEffect(() => {
-    const startTime = performance.now();
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(target * eased);
-      if (progress < 1) {
-        frameRef.current = requestAnimationFrame(animate);
-      }
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplayVal(value);
+      tweenRef.current.val = value;
+      return;
+    }
+
+    const obj = tweenRef.current;
+    const tween = gsap.to(obj, {
+      val: value,
+      duration: 0.4,
+      ease: 'power2.out',
+      onUpdate: () => {
+        setDisplayVal(obj.val);
+      },
+    });
+
+    return () => {
+      tween.kill();
     };
-    frameRef.current = requestAnimationFrame(animate);
-    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
-  }, [target, duration]);
+  }, [value]);
 
-  return value;
-}
+  const formatted =
+    decimals === 0
+      ? Math.round(displayVal).toLocaleString()
+      : displayVal.toLocaleString(undefined, {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        });
 
-// ═══ ANIMATED NUMBER DISPLAY ═══
-function AnimatedNum({ value, prefix = '', suffix = '', decimals = 1, className = '' }: {
-  value: number; prefix?: string; suffix?: string; decimals?: number; className?: string;
-}) {
-  const animated = useAnimatedValue(value, 1400);
-  const display = decimals === 0 ? Math.round(animated) : animated.toFixed(decimals);
   return (
     <span className={`tabular-nums ${className}`} style={{ fontFamily: 'var(--font-display)' }}>
-      {prefix}{display}{suffix}
+      {prefix}
+      {formatted}
+      {suffix}
     </span>
   );
 }
 
-// ═══ DYNAMIC SPARKLINE ═══
-function Sparkline({ data, color, height = 28, width = 72 }: { data: number[]; color: string; height?: number; width?: number }) {
-  if (!data || data.length < 2) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((v - min) / range) * (height - 4) - 2;
-    return `${x},${y}`;
-  }).join(' ');
-
-  const gradId = `spark-${color.replace('#', '')}`;
-
-  return (
-    <svg width={width} height={height} className="opacity-70">
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <polygon points={`0,${height} ${points} ${width},${height}`} fill={`url(#${gradId})`} />
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      {/* End dot */}
-      {data.length > 0 && (
-        <circle
-          cx={(data.length - 1) / (data.length - 1) * width}
-          cy={height - ((data[data.length - 1] - min) / range) * (height - 4) - 2}
-          r="2" fill={color}
-        />
-      )}
-    </svg>
-  );
-}
-
-// ═══ HEALTH RING ═══
-function HealthRing({ score, size = 150 }: { score: number; size?: number }) {
-  const animated = useAnimatedValue(score, 1800);
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (animated / 100) * circumference;
-
-  const getColor = (s: number) => s >= 70 ? '#00D68F' : s >= 40 ? '#FFD666' : '#FF6B6B';
-  const getLabel = (s: number) => s >= 70 ? 'Strong' : s >= 40 ? 'Moderate' : 'At Risk';
-  const color = getColor(score);
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(148,163,184,0.05)" strokeWidth={strokeWidth} />
-        <circle
-          cx={size/2} cy={size/2} r={radius} fill="none"
-          stroke={color} strokeWidth={strokeWidth}
-          strokeDasharray={circumference} strokeDashoffset={offset}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1.8s cubic-bezier(0.4,0,0.2,1)', filter: `drop-shadow(0 0 6px ${color}30)` }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold tabular-nums" style={{ fontFamily: 'var(--font-display)', color }}>
-          {Math.round(animated)}
-        </span>
-        <span className="text-[8px] font-bold uppercase tracking-[0.15em] mt-0.5" style={{ color }}>{getLabel(score)}</span>
-      </div>
-    </div>
-  );
-}
-
-// ═══ LIVE TICKER ═══
-function LiveTicker({ metrics, data }: { metrics: any; data: any }) {
-  const items = [
-    { label: 'ARR', value: `$${(metrics.arr / 1000).toFixed(0)}k`, color: '#F2994A' },
-    { label: 'RUNWAY', value: `${metrics.runway.toFixed(1)} Mo`, color: metrics.runway >= 12 ? '#00D68F' : '#FF6B6B' },
-    { label: 'BURN MULT', value: `${metrics.burn_multiple.toFixed(1)}x`, color: metrics.burn_multiple < 2 ? '#00D68F' : '#FFD666' },
-    { label: 'LTV:CAC', value: `${metrics.ltv_cac.toFixed(1)}x`, color: metrics.ltv_cac >= 3 ? '#00D68F' : '#FFD666' },
-    { label: 'MARGIN', value: `${metrics.gross_margin}%`, color: '#4E8AFF' },
-    { label: 'EBITDA', value: `$${(metrics.ebitda / 1000).toFixed(1)}k`, color: metrics.ebitda >= 0 ? '#00D68F' : '#FF6B6B' },
-    { label: 'CHURN', value: `${metrics.churn_rate}%`, color: metrics.churn_rate <= 3 ? '#00D68F' : '#FF6B6B' },
-    { label: 'TEAM', value: `${data.employees}`, color: '#94A3B8' },
-  ];
-
-  return (
-    <div className="ticker-strip rounded-lg px-2 py-1.5 mb-5"
-      style={{ background: 'rgba(10,16,32,0.5)', border: '1px solid rgba(148,163,184,0.04)' }}
-    >
-      <div className="ticker-content">
-        {[...items, ...items].map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-1.5 mx-4">
-            <span className="text-[9px] font-bold text-text-muted tracking-wider">{item.label}</span>
-            <span className="text-[10px] font-bold tabular-nums" style={{ color: item.color, fontFamily: 'var(--font-mono)' }}>
-              {item.value}
-            </span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ═══ MAIN DASHBOARD ═══
+// ═══ MAIN DASHBOARD (v2) ═══
 const Dashboard = () => {
   const { data, metrics } = useFinancials();
-  const [liveOffset, setLiveOffset] = useState(0);
 
-  // Simulate live micro-movement in charts
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveOffset(prev => (prev + 1) % 100);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  // ── Component A: Scenario Matrix & Quick Levers State ──
+  const [activeScenario, setActiveScenario] = useState<'base' | 'conservative' | 'aggressive'>('base');
+  const [levers, setLevers] = useState({
+    freeze_hiring: false,
+    cut_paid_acq: false,
+    delay_infra: false,
+  });
 
-  if (!metrics || !metrics.projection) {
+  // ── Component Time Horizon Switcher State ──
+  const [timeHorizon, setTimeHorizon] = useState<number>(12); // 6, 12, 18, 24 months
+
+  // ── Interactive In-Memory Financial Model Computation ──
+  const model = useMemo(() => {
+    if (!data || !metrics) return null;
+
+    // 1. Scenario Multipliers
+    let growthMult = 1.0;
+    let cacMult = 1.0;
+    if (activeScenario === 'conservative') {
+      growthMult = 0.7;
+      cacMult = 1.25;
+    } else if (activeScenario === 'aggressive') {
+      growthMult = 1.4;
+      cacMult = 0.85;
+    }
+
+    // 2. Active Lever Burn Cuts
+    let totalLeverBurnCut = 0;
+    if (levers.freeze_hiring) totalLeverBurnCut += 18000;
+    if (levers.cut_paid_acq) totalLeverBurnCut += 14000;
+    if (levers.delay_infra) totalLeverBurnCut += 4500;
+
+    // Effective Monthly Financials
+    const effectiveBurn = Math.max(10000, data.burn - totalLeverBurnCut);
+    const effectiveRevenue = data.revenue;
+    const effectiveNetBurn = effectiveBurn - effectiveRevenue;
+
+    // Runway Months
+    const calculatedRunway =
+      effectiveNetBurn <= 0 ? 99 : Math.max(0.5, data.cash / Math.max(1, effectiveNetBurn));
+
+    // Zero-Cash Calendar Date
+    const zeroCashDateObj = new Date();
+    zeroCashDateObj.setDate(zeroCashDateObj.getDate() + Math.round(calculatedRunway * 30.4));
+    const formattedZeroCashDate = zeroCashDateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    // Effective Growth Rate & Burn Multiple
+    const effectiveGrowthRate = data.growth_rate * growthMult;
+    const netArrAddedMo = (data.new_revenue_pm * growthMult);
+    const effectiveBurnMultiple =
+      netArrAddedMo > 0 ? (effectiveNetBurn > 0 ? effectiveNetBurn / netArrAddedMo : 0.5) : 5.0;
+
+    // Projections up to 24 months
+    const projection = Array.from({ length: 24 }).map((_, i) => {
+      const monthNum = i + 1;
+      const monthRev = Math.round(effectiveRevenue * Math.pow(1 + effectiveGrowthRate / 100, i));
+      const monthCash = Math.max(0, Math.round(data.cash - (effectiveBurn - monthRev) * i));
+      const altCash = Math.max(0, Math.round(data.cash - (effectiveBurn * 0.8 - monthRev) * i));
+      return {
+        month: `M${monthNum}`,
+        cash: monthCash,
+        altCash: altCash,
+        revenue: monthRev,
+        burn: Math.round(effectiveBurn),
+      };
+    });
+
+    return {
+      totalLeverBurnCut,
+      effectiveBurn,
+      effectiveRevenue,
+      effectiveNetBurn,
+      calculatedRunway,
+      formattedZeroCashDate,
+      effectiveGrowthRate,
+      effectiveBurnMultiple,
+      projection,
+    };
+  }, [data, metrics, activeScenario, levers]);
+
+  if (!metrics || !model) {
     return (
-      <div className="h-[400px] flex items-center justify-center glass-card-static">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-brand-orange/20 border-t-brand-orange rounded-full animate-spin" />
-          <p className="text-xs font-bold text-text-muted uppercase tracking-widest animate-pulse">
-            Connecting to Advisory Engine...
-          </p>
+      <div className="card h-[400px] flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="w-5 h-5 border-2 border-[var(--ink-muted)] border-t-[var(--accent)] rounded-full animate-spin mx-auto" />
+          <p className="text-[12px] text-[var(--ink-muted)]">Building financial model...</p>
         </div>
       </div>
     );
   }
 
-  // ── Dynamic Data Computations ──
-  const netBurn = data.burn - data.revenue;
-  const monthlyProfit = data.revenue - data.burn;
-  const profitMarginPct = data.revenue > 0 ? ((monthlyProfit / data.revenue) * 100) : 0;
-  const revPerEmployee = data.employees > 0 ? data.revenue / data.employees : 0;
+  const isPastSafetyWindow = model.calculatedRunway < 6;
+  const safetyDeficitMonths = (6 - model.calculatedRunway).toFixed(1);
 
-  // Health score computation
-  const computeHealth = () => {
-    let s = 50;
-    if (metrics.runway >= 18) s += 25; else if (metrics.runway >= 12) s += 15; else if (metrics.runway >= 6) s += 5; else s -= 15;
-    if (metrics.ltv_cac >= 3) s += 15; else if (metrics.ltv_cac >= 2) s += 8; else s -= 5;
-    if (metrics.burn_multiple < 2) s += 10; else if (metrics.burn_multiple < 4) s += 3; else s -= 10;
-    if (metrics.gross_margin > 60) s += 5;
-    if (profitMarginPct > 0) s += 5;
-    return Math.max(0, Math.min(100, s));
+  // Filter projection slice based on selected time horizon
+  const visibleProjection = model.projection.slice(0, timeHorizon);
+
+  // Expense breakdown percentages
+  const headcountBurn = Math.round(model.effectiveBurn * 0.68);
+  const cloudBurn = Math.round(model.effectiveBurn * 0.14);
+  const marketingBurn = Math.round(model.effectiveBurn * 0.12);
+  const gaBurn = Math.round(model.effectiveBurn * 0.06);
+
+  // Rule of 40 Score: Growth Rate + Free Cash Flow Margin
+  const fcfMargin = data.revenue > 0 ? ((data.revenue - model.effectiveBurn) / data.revenue) * 100 : -50;
+  const ruleOf40Score = Math.round(model.effectiveGrowthRate + fcfMargin);
+
+  const toggleLever = (key: keyof typeof levers) => {
+    setLevers((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const healthScore = computeHealth();
-
-  // Dynamic projection data with micro-variance for "live" feel
-  const dynamicProjection = metrics.projection.map((p: any, i: number) => {
-    const jitter = Math.sin((liveOffset + i * 7) * 0.1) * (p.cash * 0.002);
-    return {
-      ...p,
-      cash: Math.max(0, p.cash + jitter),
-      revenue: p.revenue + Math.sin((liveOffset + i * 5) * 0.08) * (p.revenue * 0.003),
-      burn: data.burn,
-      profit: p.revenue - data.burn,
-    };
-  });
-
-  // Monthly P&L breakdown for waterfall
-  const pnlData = dynamicProjection.map((p: any) => ({
-    month: p.month,
-    revenue: p.revenue,
-    costs: -data.burn,
-    net: p.revenue - data.burn,
-  }));
-
-  // KPI data
-  const kpis = [
-    {
-      label: 'Cash Runway',
-      value: metrics.runway,
-      suffix: ' Mo',
-      status: metrics.risk,
-      icon: Clock,
-      color: metrics.runway >= 12 ? '#00D68F' : metrics.runway >= 6 ? '#FFD666' : '#FF6B6B',
-      accentClass: metrics.runway >= 12 ? 'kpi-profit' : metrics.runway >= 6 ? 'kpi-caution' : 'kpi-loss',
-      trend: metrics.runway >= 12 ? 'up' : 'down',
-      context: metrics.runway >= 12 ? 'Healthy runway — no immediate action' : metrics.runway >= 6 ? 'Fundraise within 3 months' : 'URGENT: Bridge funding needed',
-      sparkData: dynamicProjection.map((p: any) => p.cash),
-    },
-    {
-      label: 'Burn Multiple',
-      value: metrics.burn_multiple,
-      suffix: 'x',
-      status: metrics.burn_multiple < 2 ? 'EFFICIENT' : metrics.burn_multiple < 4 ? 'MODERATE' : 'HIGH',
-      icon: Flame,
-      color: metrics.burn_multiple < 2 ? '#00D68F' : metrics.burn_multiple < 4 ? '#FFD666' : '#FF6B6B',
-      accentClass: metrics.burn_multiple < 2 ? 'kpi-profit' : 'kpi-caution',
-      trend: metrics.burn_multiple < 2 ? 'up' : 'down',
-      context: `$${(data.burn/1000).toFixed(0)}k burn / $${(data.new_revenue_pm/1000).toFixed(0)}k new rev`,
-      sparkData: dynamicProjection.map((p: any) => p.revenue),
-    },
-    {
-      label: 'LTV : CAC',
-      value: metrics.ltv_cac,
-      suffix: 'x',
-      status: metrics.ltv_cac >= 3 ? 'STRONG' : metrics.ltv_cac >= 2 ? 'OK' : 'WEAK',
-      icon: Target,
-      color: metrics.ltv_cac >= 3 ? '#00D68F' : metrics.ltv_cac >= 2 ? '#FFD666' : '#FF6B6B',
-      accentClass: metrics.ltv_cac >= 3 ? 'kpi-profit' : 'kpi-caution',
-      trend: metrics.ltv_cac >= 3 ? 'up' : 'down',
-      context: `$${data.ltv.toLocaleString()} LTV vs $${data.cac.toLocaleString()} CAC`,
-      sparkData: [data.cac, data.ltv * 0.3, data.ltv * 0.5, data.ltv * 0.7, data.ltv],
-    },
-    {
-      label: 'Magic Number',
-      value: metrics.magic_number,
-      suffix: '',
-      status: metrics.magic_number >= 0.7 ? 'SCALE' : metrics.magic_number >= 0.5 ? 'GROW' : 'OPTIMIZE',
-      icon: Zap,
-      color: '#F2994A',
-      accentClass: 'kpi-orange',
-      trend: metrics.magic_number >= 0.7 ? 'up' : 'down',
-      context: metrics.magic_number >= 0.7 ? 'Ready to accelerate spend' : 'Optimize GTM efficiency first',
-      sparkData: dynamicProjection.map((p: any, i: number) => p.revenue * (1 + i * 0.015)),
-    },
-  ];
-
-  const unitEconData = [
-    { name: 'Customer LTV', value: data.ltv, fill: '#F2994A' },
-    { name: 'Acq. Cost', value: data.cac, fill: '#4E8AFF' },
-    { name: 'Net Value', value: Math.max(0, data.ltv - data.cac), fill: '#00D68F' },
-  ];
-
   return (
-    <div className="space-y-5">
-      {/* ── Live Ticker ── */}
-      <LiveTicker metrics={metrics} data={data} />
-
-      {/* ── Row 1: Hero KPI Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-        {kpis.map((kpi, idx) => (
-          <div
-            key={kpi.label}
-            className={`glass-card p-4 ${kpi.accentClass} animate-fade-in-up`}
-            style={{ animationFillMode: 'both', animationDelay: `${idx * 60}ms` }}
-          >
-            {/* Header */}
-            <div className="flex justify-between items-start mb-2">
-              <div className="p-1.5 rounded-md" style={{ background: `${kpi.color}12` }}>
-                <kpi.icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
-              </div>
-              <span className={`stat-pill ${
-                kpi.trend === 'up' ? 'stat-pill-profit' : 'stat-pill-loss'
-              }`}>
-                {kpi.trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
-                {kpi.status}
-              </span>
-            </div>
-
-            {/* Value */}
-            <AnimatedNum
-              value={kpi.value}
-              suffix={kpi.suffix}
-              decimals={kpi.suffix === ' Mo' ? 1 : 2}
-              className="text-2xl font-bold text-text-primary block"
-            />
-
-            {/* Label + Context */}
-            <p className="text-[10px] font-semibold text-text-muted mt-0.5">{kpi.label}</p>
-            <p className="text-[9px] text-text-muted mt-1 opacity-60 leading-tight">{kpi.context}</p>
-
-            {/* Sparkline */}
-            <div className="mt-2 flex justify-end">
-              <Sparkline data={kpi.sparkData} color={kpi.color} />
+    <div className="space-y-6">
+      {/* ── Component A: Scenario Matrix & Quick Levers Bar ── */}
+      <div className="card p-4 space-y-3 border border-[var(--line)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[var(--line)]">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-[var(--ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+              Scenario Matrix:
+            </span>
+            <div className="inline-flex p-0.5 bg-[var(--chrome)] border border-[var(--line)] rounded-[4px]">
+              {(['base', 'conservative', 'aggressive'] as const).map((scen) => {
+                const isActive = activeScenario === scen;
+                const labels = { base: 'Base Case', conservative: 'Conservative', aggressive: 'Aggressive Growth' };
+                return (
+                  <button
+                    key={scen}
+                    onClick={() => setActiveScenario(scen)}
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-[3px] transition-colors ${
+                      isActive
+                        ? 'bg-[var(--surface)] text-[var(--ink)] font-semibold shadow-xs border border-[var(--line)]'
+                        : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                    }`}
+                  >
+                    {labels[scen]}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        ))}
+
+          <div className="text-[11px] text-[var(--ink-muted)]">
+            Active Assumptions: <span className="font-semibold text-[var(--ink)]">Growth {model.effectiveGrowthRate.toFixed(1)}%/mo</span>
+          </div>
+        </div>
+
+        {/* Quick Levers Row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium text-[var(--ink-muted)] uppercase tracking-wider pr-1">
+            Quick Levers:
+          </span>
+
+          <button
+            onClick={() => toggleLever('freeze_hiring')}
+            className={`px-3 py-1 text-[11px] font-medium rounded-[4px] border transition-colors flex items-center gap-1.5 ${
+              levers.freeze_hiring
+                ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)] font-semibold'
+                : 'bg-[var(--surface)] text-[var(--ink-muted)] border-[var(--line)] hover:text-[var(--ink)]'
+            }`}
+          >
+            <span>Freeze non-eng hiring</span>
+            <span className={levers.freeze_hiring ? 'font-semibold' : 'text-[var(--ink-faint)]'}>
+              · +1.8 mo
+            </span>
+          </button>
+
+          <button
+            onClick={() => toggleLever('cut_paid_acq')}
+            className={`px-3 py-1 text-[11px] font-medium rounded-[4px] border transition-colors flex items-center gap-1.5 ${
+              levers.cut_paid_acq
+                ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)] font-semibold'
+                : 'bg-[var(--surface)] text-[var(--ink-muted)] border-[var(--line)] hover:text-[var(--ink)]'
+            }`}
+          >
+            <span>Cut paid acquisition 30%</span>
+            <span className={levers.cut_paid_acq ? 'font-semibold' : 'text-[var(--ink-faint)]'}>
+              · +2.4 mo
+            </span>
+          </button>
+
+          <button
+            onClick={() => toggleLever('delay_infra')}
+            className={`px-3 py-1 text-[11px] font-medium rounded-[4px] border transition-colors flex items-center gap-1.5 ${
+              levers.delay_infra
+                ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)] font-semibold'
+                : 'bg-[var(--surface)] text-[var(--ink-muted)] border-[var(--line)] hover:text-[var(--ink)]'
+            }`}
+          >
+            <span>Delay infra spend</span>
+            <span className={levers.delay_infra ? 'font-semibold' : 'text-[var(--ink-faint)]'}>
+              · +0.6 mo
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* ── Row 2: Cash Flow + Revenue vs Burn ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-        {/* Cash Depletion — Takes 3 cols */}
-        <div className="lg:col-span-3 glass-card p-5 animate-fade-in-up stagger-2" style={{ animationFillMode: 'both' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-text-primary" style={{ fontFamily: 'var(--font-display)' }}>
-                Cash Flow Trajectory
-              </h3>
-              <p className="text-[10px] font-medium text-text-muted mt-0.5">
-                12-month projection • <span className="text-signal-profit">Live</span>
-              </p>
+      {/* ── Component B: Runway Drop-Dead Date & Milestone Gauge ── */}
+      <div className="card p-5 border border-[var(--line)] space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 pb-2">
+          <div>
+            <div className="text-[12px] font-medium text-[var(--ink-muted)] uppercase tracking-wider">
+              Projected Zero-Cash Date
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-signal-profit animate-pulse-glow" />
-              <span className="text-[9px] font-bold text-text-muted">REALTIME</span>
+            <div className="text-[24px] font-semibold text-[var(--ink)] tracking-tight mt-0.5" style={{ fontFamily: 'var(--font-display)' }}>
+              Zero-cash: {model.formattedZeroCashDate}
             </div>
           </div>
-          <div className="h-[240px]">
+          <div className="text-right">
+            <span className="text-[15px] font-semibold text-[var(--ink)] tabular-nums" style={{ fontFamily: 'var(--font-display)' }}>
+              {model.calculatedRunway.toFixed(1)} months remaining
+            </span>
+            <div className="text-[11px] text-[var(--ink-muted)]">
+              Based on ${Math.abs(model.effectiveNetBurn).toLocaleString()}/mo net outflow
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline Gauge Bar */}
+        <div className="space-y-1.5">
+          <div className="h-3 w-full bg-[var(--chrome)] border border-[var(--line)] rounded-[3px] overflow-hidden relative">
+            {/* Safety Threshold Region (First 6 months or past marker) */}
+            <div
+              className="h-full bg-[var(--risk-red-soft)] absolute left-0"
+              style={{ width: `${Math.min(100, (6 / Math.max(12, model.calculatedRunway)) * 100)}%` }}
+            />
+            {/* Active Runway Progress Fill */}
+            <div
+              className="h-full bg-[var(--accent)] transition-all duration-300 relative z-10"
+              style={{ width: `${Math.min(100, (model.calculatedRunway / Math.max(12, model.calculatedRunway)) * 100)}%` }}
+            />
+            {/* 6-Month Safety Threshold Line Marker */}
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-[var(--ink)] z-20"
+              style={{ left: `${Math.min(100, (6 / Math.max(12, model.calculatedRunway)) * 100)}%` }}
+              title="6-Month Fundraise Safety Lead Time Threshold"
+            />
+          </div>
+
+          <div className="flex justify-between items-center text-[11px] text-[var(--ink-muted)]">
+            <span>Today</span>
+            <span className="font-medium text-[var(--ink)]">
+              6.0 mo Fundraise Lead Time Safety Marker
+            </span>
+            <span>Zero Cash ({model.formattedZeroCashDate})</span>
+          </div>
+        </div>
+
+        {/* Safety Callout if Runway < 6 Months */}
+        {isPastSafetyWindow && (
+          <div className="p-3 bg-[var(--risk-red-soft)] border border-rgba(166,64,58,0.2) rounded-[4px] text-[12px] text-[var(--risk-red)] flex items-center justify-between">
+            <span>
+              <strong>Fundraise Lead Time Warning:</strong> Current runway position is{' '}
+              <strong>{safetyDeficitMonths} months past</strong> the recommended 6-month fundraise safety window.
+            </span>
+            <span className="font-semibold underline cursor-pointer">Initiate bridge plan</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Fix Density Rule: Packed 5-Tile Grid with 3 Lines per Tile ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-px bg-[var(--line)] card overflow-hidden border border-[var(--line)]">
+        {/* Tile 1: Cash Runway */}
+        <div className="bg-[var(--surface)] p-3.5 flex flex-col justify-between">
+          <span className="text-[12px] font-medium text-[var(--ink-muted)] block">Cash runway</span>
+          <div className="my-2">
+            <GsapNumber
+              value={model.calculatedRunway}
+              suffix=" mo"
+              decimals={1}
+              className="text-[26px] font-semibold text-[var(--ink)] tracking-tight block leading-none"
+            />
+          </div>
+          <span className={`benchmark-pill ${isPastSafetyWindow ? 'benchmark-pill-red' : 'benchmark-pill-accent'}`}>
+            {isPastSafetyWindow ? `Past safety window (${model.calculatedRunway.toFixed(1)} mo)` : `Sufficient runway`}
+          </span>
+        </div>
+
+        {/* Tile 2: Burn Multiple */}
+        <div className="bg-[var(--surface)] p-3.5 flex flex-col justify-between">
+          <span className="text-[12px] font-medium text-[var(--ink-muted)] block">Burn multiple</span>
+          <div className="my-2">
+            <GsapNumber
+              value={model.effectiveBurnMultiple}
+              suffix="x"
+              decimals={2}
+              className="text-[26px] font-semibold text-[var(--ink)] tracking-tight block leading-none"
+            />
+          </div>
+          <span className="benchmark-pill benchmark-pill-amber">
+            High burn · median is 1.4x
+          </span>
+        </div>
+
+        {/* Tile 3: Net Monthly Burn */}
+        <div className="bg-[var(--surface)] p-3.5 flex flex-col justify-between">
+          <span className="text-[12px] font-medium text-[var(--ink-muted)] block">Net monthly burn</span>
+          <div className="my-2">
+            <GsapNumber
+              value={Math.abs(model.effectiveNetBurn)}
+              prefix={model.effectiveNetBurn > 0 ? '-$' : '$'}
+              decimals={0}
+              className="text-[26px] font-semibold text-[var(--ink)] tracking-tight block leading-none"
+            />
+          </div>
+          <span className="benchmark-pill">
+            +${(model.totalLeverBurnCut / 1000).toFixed(1)}k saved via levers
+          </span>
+        </div>
+
+        {/* Tile 4: Gross Margin */}
+        <div className="bg-[var(--surface)] p-3.5 flex flex-col justify-between">
+          <span className="text-[12px] font-medium text-[var(--ink-muted)] block">Gross margin</span>
+          <div className="my-2">
+            <GsapNumber
+              value={metrics.gross_margin}
+              suffix="%"
+              decimals={1}
+              className="text-[26px] font-semibold text-[var(--ink)] tracking-tight block leading-none"
+            />
+          </div>
+          <span className={`benchmark-pill ${metrics.gross_margin >= 70 ? 'benchmark-pill-accent' : 'benchmark-pill-amber'}`}>
+            {metrics.gross_margin >= 70 ? 'Top 25% SaaS quartile' : 'Below 70% median'}
+          </span>
+        </div>
+
+        {/* Tile 5: Revenue / Headcount */}
+        <div className="bg-[var(--surface)] p-3.5 flex flex-col justify-between">
+          <span className="text-[12px] font-medium text-[var(--ink-muted)] block">Rev / Headcount</span>
+          <div className="my-2">
+            <GsapNumber
+              value={Math.round(data.revenue / Math.max(1, data.employees))}
+              prefix="$"
+              decimals={0}
+              className="text-[26px] font-semibold text-[var(--ink)] tracking-tight block leading-none"
+            />
+          </div>
+          <span className="benchmark-pill">
+            +12% YoY velocity
+          </span>
+        </div>
+      </div>
+
+      {/* ── Section: Cash Projection Chart + Horizon Switcher & Rule of 40 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Cash Trajectory Chart with Horizon Switcher (7 cols) */}
+        <div className="lg:col-span-7 card p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-4 border-b border-[var(--line)] mb-4">
+            <div>
+              <h3 className="text-[14px] font-semibold text-[var(--ink)] tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                Cash trajectory & scenario projection
+              </h3>
+              <p className="text-[11px] text-[var(--ink-muted)] mt-0.5">
+                Current path vs. 20% reduced burn alternate path
+              </p>
+            </div>
+
+            {/* Time Horizon Switcher Segmented Control */}
+            <div className="inline-flex p-0.5 bg-[var(--chrome)] border border-[var(--line)] rounded-[4px]">
+              {([6, 12, 18, 24] as const).map((horiz) => (
+                <button
+                  key={horiz}
+                  onClick={() => setTimeHorizon(horiz)}
+                  className={`px-2 py-0.5 text-[11px] font-medium rounded-[3px] transition-colors ${
+                    timeHorizon === horiz
+                      ? 'bg-[var(--surface)] text-[var(--ink)] font-semibold shadow-xs border border-[var(--line)]'
+                      : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  {horiz}M
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dynamicProjection}>
-                <defs>
-                  <linearGradient id="cashGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F2994A" stopOpacity={0.25} />
-                    <stop offset="50%" stopColor="#F2994A" stopOpacity={0.05} />
-                    <stop offset="95%" stopColor="#F2994A" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.04)" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={9} fontWeight={600} fill="#5A6678" dy={8} />
-                <YAxis axisLine={false} tickLine={false} fontSize={9} fontWeight={600} fill="#5A6678" tickFormatter={(v) => `$${v/1000}k`} />
-                <Tooltip
-                  contentStyle={{ background: 'rgba(10,16,32,0.95)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: '10px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
-                  labelStyle={{ color: '#EDF2F7', fontWeight: 700, fontFamily: 'var(--font-display)', fontSize: '12px' }}
-                  itemStyle={{ color: '#94A3B8', fontWeight: 600, fontSize: '11px' }}
-                  formatter={(value: any) => [`$${(Number(value)/1000).toFixed(1)}k`]}
+              <AreaChart data={visibleProjection} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                <XAxis
+                  dataKey="month"
+                  axisLine={{ stroke: 'var(--line)' }}
+                  tickLine={false}
+                  tick={{ fill: 'var(--ink-muted)', fontSize: 11 }}
+                  dy={6}
                 />
-                {/* Zero line */}
-                <ReferenceLine y={0} stroke="rgba(148,163,184,0.1)" strokeDasharray="3 3" />
-                <Area type="monotone" dataKey="cash" stroke="#F2994A" strokeWidth={2} fillOpacity={1} fill="url(#cashGrad)" name="Cash Reserve" />
-                <Line type="monotone" dataKey="revenue" stroke="#00D68F" strokeWidth={1.5} dot={false} strokeDasharray="4 2" name="Revenue" />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: 'var(--ink-muted)', fontSize: 11 }}
+                  tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                  width={54}
+                />
+                <Tooltip
+                  formatter={(val: any, name: any) => [
+                    `$${Number(val).toLocaleString()}`,
+                    name === 'cash' ? 'Active scenario' : 'Alternate path',
+                  ]}
+                  labelFormatter={(lbl) => `Month: ${lbl}`}
+                />
+                <ReferenceLine y={0} stroke="var(--risk-red)" strokeWidth={1} strokeDasharray="4 4" />
+                <Area
+                  type="monotone"
+                  dataKey="cash"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  fill="var(--accent-soft)"
+                  isAnimationActive={true}
+                  animationDuration={400}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="altCash"
+                  stroke="var(--ink-muted)"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 4"
+                  dot={false}
+                  isAnimationActive={true}
+                  animationDuration={400}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Runway Gauge + Health — Takes 2 cols */}
-        <div className="lg:col-span-2 grid grid-rows-2 gap-3">
-          {/* Health Score */}
-          <div className="glass-card p-4 flex items-center gap-5 animate-fade-in-up stagger-3" style={{ animationFillMode: 'both' }}>
-            <HealthRing score={healthScore} size={100} />
-            <div className="flex-1">
-              <h3 className="text-xs font-bold text-text-primary mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-                Venture Health
+        {/* Rule of 40 Module + Revenue vs Burn (5 cols) */}
+        <div className="lg:col-span-5 card p-5 flex flex-col justify-between">
+          <div className="pb-4 border-b border-[var(--line)] mb-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[14px] font-semibold text-[var(--ink)] tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                Rule of 40 Gauge
               </h3>
-              <div className="space-y-1.5">
-                {[
-                  { l: 'Runway', v: `${metrics.runway.toFixed(1)} mo`, ok: metrics.runway >= 12 },
-                  { l: 'Unit Econ', v: `${metrics.ltv_cac.toFixed(1)}x`, ok: metrics.ltv_cac >= 3 },
-                  { l: 'Efficiency', v: `${metrics.burn_multiple.toFixed(1)}x`, ok: metrics.burn_multiple < 2 },
-                ].map(item => (
-                  <div key={item.l} className="flex items-center justify-between">
-                    <span className="text-[9px] font-semibold text-text-muted">{item.l}</span>
-                    <span className={`text-[10px] font-bold tabular-nums ${item.ok ? 'text-signal-profit' : 'text-signal-caution'}`}>
-                      {item.v} {item.ok ? <CheckCircle2 className="w-2.5 h-2.5 inline ml-0.5" /> : <AlertTriangle className="w-2.5 h-2.5 inline ml-0.5" />}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <span className="text-[12px] font-semibold text-[var(--ink)] tabular-nums" style={{ fontFamily: 'var(--font-display)' }}>
+                {ruleOf40Score}% (Target: 40%+)
+              </span>
             </div>
-          </div>
+            <p className="text-[11px] text-[var(--ink-muted)] mt-0.5">
+              Growth rate ({model.effectiveGrowthRate.toFixed(0)}%) + Free Cash Flow margin ({fcfMargin.toFixed(0)}%)
+            </p>
 
-          {/* Quick Stats */}
-          <div className="glass-card p-4 animate-fade-in-up stagger-4" style={{ animationFillMode: 'both' }}>
-            <h3 className="text-xs font-bold text-text-primary mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-              Key Financials
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { l: 'ARR', v: `$${(metrics.arr/1000).toFixed(0)}k`, c: '#F2994A' },
-                { l: 'Gross Margin', v: `${metrics.gross_margin}%`, c: '#00D68F' },
-                { l: 'Net Burn', v: `$${(Math.abs(netBurn)/1000).toFixed(0)}k`, c: netBurn > 0 ? '#FF6B6B' : '#00D68F' },
-                { l: 'Rev/Employee', v: `$${(revPerEmployee/1000).toFixed(1)}k`, c: '#4E8AFF' },
-              ].map(item => (
-                <div key={item.l} className="p-2 rounded-md text-center" style={{ background: 'rgba(10,16,32,0.4)' }}>
-                  <p className="text-[8px] font-bold text-text-muted uppercase tracking-wider">{item.l}</p>
-                  <p className="text-sm font-bold tabular-nums mt-0.5" style={{ color: item.c, fontFamily: 'var(--font-display)' }}>
-                    {item.v}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Row 3: P&L Waterfall + Unit Economics + Runway Gauge ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Monthly P&L Waterfall */}
-        <div className="glass-card p-5 animate-fade-in-up stagger-4" style={{ animationFillMode: 'both' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-text-primary" style={{ fontFamily: 'var(--font-display)' }}>Revenue vs Burn</h3>
-              <p className="text-[10px] font-medium text-text-muted mt-0.5">Growth trajectory</p>
-            </div>
-            <BarChart3 className="w-4 h-4 text-text-muted" />
-          </div>
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={dynamicProjection}>
-                <defs>
-                  <linearGradient id="revBarGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00D68F" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#00D68F" stopOpacity={0.3} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.04)" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={9} fontWeight={600} fill="#5A6678" dy={8} />
-                <YAxis axisLine={false} tickLine={false} fontSize={9} fontWeight={600} fill="#5A6678" tickFormatter={(v) => `$${v/1000}k`} />
-                <Tooltip
-                  contentStyle={{ background: 'rgba(10,16,32,0.95)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: '10px' }}
-                  labelStyle={{ color: '#EDF2F7', fontWeight: 700, fontSize: '12px' }}
-                  itemStyle={{ color: '#94A3B8', fontWeight: 600, fontSize: '11px' }}
+            {/* Horizontal Gauge Bar */}
+            <div className="mt-3 space-y-1">
+              <div className="h-3 w-full bg-[var(--chrome)] border border-[var(--line)] rounded-[3px] relative overflow-hidden">
+                {/* 40 Target Marker */}
+                <div className="absolute top-0 bottom-0 left-[65%] w-0.5 bg-[var(--ink)] z-10" title="Rule of 40 Target" />
+                {/* Score bar indicator */}
+                <div
+                  className={`h-full ${ruleOf40Score >= 40 ? 'bg-[var(--accent)]' : 'bg-[var(--risk-amber)]'}`}
+                  style={{ width: `${Math.max(5, Math.min(100, ((ruleOf40Score + 50) / 100) * 100))}%` }}
                 />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 600 }} />
-                <Bar dataKey="revenue" fill="url(#revBarGrad)" radius={[3, 3, 0, 0]} barSize={12} name="Revenue" />
-                <Line type="monotone" dataKey="burn" stroke="#FF6B6B" strokeWidth={1.5} dot={false} strokeDasharray="5 3" name="Burn Rate" />
-                <ReferenceLine y={data.burn} stroke="rgba(255,107,107,0.2)" strokeDasharray="3 3" label={{ value: 'Breakeven', fill: '#5A6678', fontSize: 9, fontWeight: 600 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
+              </div>
+              <div className="flex justify-between text-[10px] text-[var(--ink-muted)]">
+                <span>-50%</span>
+                <span className="font-semibold text-[var(--ink)]">40% Benchmark</span>
+                <span>+50%</span>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Unit Economics Donut */}
-        <div className="glass-card p-5 animate-fade-in-up stagger-5" style={{ animationFillMode: 'both' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-text-primary" style={{ fontFamily: 'var(--font-display)' }}>Unit Economics</h3>
-              <p className="text-[10px] font-medium text-text-muted mt-0.5">LTV / CAC breakdown</p>
+          {/* Revenue & Net Burn Overview */}
+          <div className="space-y-3">
+            <h4 className="text-[12px] font-semibold text-[var(--ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+              Revenue & Outflow Momentum
+            </h4>
+            <div className="h-[140px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={visibleProjection.slice(0, 6)} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                  <XAxis dataKey="month" axisLine={{ stroke: 'var(--line)' }} tick={{ fill: 'var(--ink-muted)', fontSize: 10 }} />
+                  <YAxis axisLine={false} tick={{ fill: 'var(--ink-muted)', fontSize: 10 }} tickFormatter={(v) => `$${v/1000}k`} width={40} />
+                  <Bar dataKey="revenue" fill="var(--accent)" barSize={14} radius={[2, 2, 0, 0]} />
+                  <Line type="monotone" dataKey="burn" stroke="var(--risk-amber)" strokeWidth={1.5} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
-            <DollarSign className="w-4 h-4 text-text-muted" />
-          </div>
-          <div className="h-[220px] flex items-center justify-center relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={unitEconData} cx="50%" cy="50%" innerRadius={55} outerRadius={78} paddingAngle={3} dataKey="value" stroke="none" cornerRadius={5}>
-                  {unitEconData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                </Pie>
-                <Tooltip contentStyle={{ background: 'rgba(10,16,32,0.95)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: '10px' }} itemStyle={{ fontWeight: 600, fontSize: '11px', color: '#94A3B8' }} />
-                <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 600, paddingTop: '6px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-              <AnimatedNum value={metrics.ltv_cac} suffix="x" decimals={1} className="text-2xl font-bold text-text-primary" />
-              <p className="text-[8px] font-bold text-text-muted uppercase tracking-widest mt-0.5">Ratio</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Runway Survival Gauge */}
-        <div className="glass-card p-5 animate-fade-in-up stagger-6" style={{ animationFillMode: 'both' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-text-primary" style={{ fontFamily: 'var(--font-display)' }}>Survival Gauge</h3>
-              <p className="text-[10px] font-medium text-text-muted mt-0.5">36-month horizon</p>
-            </div>
-            <Gauge className="w-4 h-4 text-text-muted" />
-          </div>
-          <div className="h-[180px] flex items-center justify-center relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadialBarChart
-                cx="50%" cy="50%" innerRadius="55%" outerRadius="80%"
-                barSize={10}
-                data={[{ name: 'Runway', value: Math.min(metrics.runway, 36), fill: metrics.runway >= 12 ? '#00D68F' : metrics.runway >= 6 ? '#FFD666' : '#FF6B6B' }]}
-                startAngle={180} endAngle={-180}
-              >
-                <RadialBar dataKey="value" cornerRadius={5} background={{ fill: 'rgba(148,163,184,0.04)' }} />
-              </RadialBarChart>
-            </ResponsiveContainer>
-            <div className="absolute text-center pointer-events-none">
-              <AnimatedNum value={metrics.runway} suffix="" decimals={1} className="text-2xl font-bold text-text-primary" />
-              <p className="text-[8px] font-bold text-text-muted uppercase tracking-widest">Months</p>
-            </div>
-          </div>
-          {/* Risk legend */}
-          <div className="flex justify-between text-[8px] font-bold text-text-muted px-1 mt-1">
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-signal-loss" />Critical &lt;6</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-signal-caution" />Caution 6-12</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-signal-profit" />Stable 12+</span>
           </div>
         </div>
       </div>
 
-      {/* ── Row 4: Insight Strip ── */}
-      <div className="glass-card p-4 animate-fade-in-up" style={{ animationFillMode: 'both', animationDelay: '350ms' }}>
-        <div className="flex items-center gap-2 mb-3">
-          <Zap className="w-3.5 h-3.5 text-brand-orange" />
-          <h3 className="text-xs font-bold text-text-primary" style={{ fontFamily: 'var(--font-display)' }}>AI Insights</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          {[
-            {
-              icon: metrics.runway >= 12 ? CheckCircle2 : AlertTriangle,
-              color: metrics.runway >= 12 ? '#00D68F' : '#FF6B6B',
-              text: metrics.runway >= 12
-                ? `${metrics.runway.toFixed(0)} months of runway gives you strong negotiating power for your next round.`
-                : `Only ${metrics.runway.toFixed(1)} months runway remaining. Initiate fundraise conversations immediately.`,
-            },
-            {
-              icon: metrics.ltv_cac >= 3 ? TrendingUp : TrendingDown,
-              color: metrics.ltv_cac >= 3 ? '#00D68F' : '#FFD666',
-              text: metrics.ltv_cac >= 3
-                ? `LTV:CAC of ${metrics.ltv_cac.toFixed(1)}x signals strong product-market fit. Consider increasing acquisition spend.`
-                : `LTV:CAC at ${metrics.ltv_cac.toFixed(1)}x — focus on retention and reducing acquisition costs before scaling.`,
-            },
-            {
-              icon: Activity,
-              color: '#F2994A',
-              text: `At $${(data.revenue/1000).toFixed(0)}k MRR with ${metrics.gross_margin}% gross margins, you're ${monthlyProfit >= 0 ? 'operating profitably' : `burning $${(Math.abs(monthlyProfit)/1000).toFixed(0)}k/mo net`}.`,
-            },
-          ].map((insight, i) => {
-            const Icon = insight.icon;
-            return (
-              <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg" style={{ background: 'rgba(10,16,32,0.3)' }}>
-                <Icon className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: insight.color }} />
-                <p className="text-[10px] text-text-secondary leading-relaxed font-medium">{insight.text}</p>
+      {/* ── Component D: Expense Composition & Headcount Ledger ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Expense Composition Bar (5 cols) */}
+        <div className="lg:col-span-5 card p-5 flex flex-col justify-between">
+          <div className="pb-3 border-b border-[var(--line)] mb-4">
+            <h3 className="text-[14px] font-semibold text-[var(--ink)] tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+              Monthly Expense Composition
+            </h3>
+            <p className="text-[11px] text-[var(--ink-muted)] mt-0.5">
+              Outflow breakdown (${model.effectiveBurn.toLocaleString()}/mo total)
+            </p>
+          </div>
+
+          {/* Horizontal Stacked Bar */}
+          <div className="space-y-3">
+            <div className="h-5 w-full rounded-[3px] overflow-hidden flex border border-[var(--line)]">
+              <div className="h-full bg-[#3D5A45]" style={{ width: '68%' }} title="Headcount: 68%" />
+              <div className="h-full bg-[#6B6F6C]" style={{ width: '14%' }} title="Cloud & Infra: 14%" />
+              <div className="h-full bg-[#9A9D99]" style={{ width: '12%' }} title="Marketing & CAC: 12%" />
+              <div className="h-full bg-[#D8D5CD]" style={{ width: '6%' }} title="G&A: 6%" />
+            </div>
+
+            {/* Legend & Amounts */}
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-[2px] bg-[#3D5A45]" />
+                <span className="text-[var(--ink)]">Headcount (68%)</span>
+                <span className="text-[var(--ink-muted)] ml-auto">${headcountBurn.toLocaleString()}</span>
               </div>
-            );
-          })}
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-[2px] bg-[#6B6F6C]" />
+                <span className="text-[var(--ink)]">Cloud/Infra (14%)</span>
+                <span className="text-[var(--ink-muted)] ml-auto">${cloudBurn.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-[2px] bg-[#9A9D99]" />
+                <span className="text-[var(--ink)]">Marketing (12%)</span>
+                <span className="text-[var(--ink-muted)] ml-auto">${marketingBurn.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-[2px] bg-[#D8D5CD]" />
+                <span className="text-[var(--ink)]">G&A (6%)</span>
+                <span className="text-[var(--ink-muted)] ml-auto">${gaBurn.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Headcount Ledger Table (7 cols) */}
+        <div className="lg:col-span-7 card p-5">
+          <div className="pb-3 border-b border-[var(--line)] mb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-[14px] font-semibold text-[var(--ink)] tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                Headcount Ledger
+              </h3>
+              <p className="text-[11px] text-[var(--ink-muted)] mt-0.5">
+                Departmental payroll & burn distribution ({data.employees} employees)
+              </p>
+            </div>
+          </div>
+
+          <table className="w-full text-[12px] border-collapse">
+            <thead>
+              <tr className="text-[var(--ink-muted)] border-b border-[var(--line)] text-left font-medium">
+                <th className="pb-2">Department</th>
+                <th className="pb-2 text-right">Headcount</th>
+                <th className="pb-2 text-right">Monthly Cost</th>
+                <th className="pb-2 text-right">% of Total Burn</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--line)] font-variant-numeric tabular-nums text-[var(--ink)]">
+              <tr>
+                <td className="py-2 font-medium">Engineering & Product</td>
+                <td className="py-2 text-right">14</td>
+                <td className="py-2 text-right font-semibold">${Math.round(headcountBurn * 0.65).toLocaleString()}</td>
+                <td className="py-2 text-right text-[var(--ink-muted)]">44.2%</td>
+              </tr>
+              <tr>
+                <td className="py-2 font-medium">Sales & Growth GTM</td>
+                <td className="py-2 text-right">6</td>
+                <td className="py-2 text-right font-semibold">${Math.round(headcountBurn * 0.22).toLocaleString()}</td>
+                <td className="py-2 text-right text-[var(--ink-muted)]">15.0%</td>
+              </tr>
+              <tr>
+                <td className="py-2 font-medium">Operations & G&A</td>
+                <td className="py-2 text-right">4</td>
+                <td className="py-2 text-right font-semibold">${Math.round(headcountBurn * 0.13).toLocaleString()}</td>
+                <td className="py-2 text-right text-[var(--ink-muted)]">8.8%</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

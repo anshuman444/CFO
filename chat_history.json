@@ -102,21 +102,21 @@
         ]
     },
     "981fa07f-9f7d-415a-b8cf-9a32892ba9f1": {
-        "last_updated": "2026-05-11T23:36:28.711820",
+        "last_updated": "2026-09-04T23:15:10.979498",
         "startup_data": {
             "name": "Nimbus Labs",
             "revenue": 120000.0,
             "burn": 85000.0,
             "cash": 320000.0,
-            "growth": 12.0,
-            "headcount": 24,
+            "cogs": 24000.0,
+            "opex": 61000.0,
             "ltv": 1200.0,
             "cac": 350.0,
+            "churn": 2.5,
             "new_revenue_pm": 15000.0,
             "growth_rate": 12.0,
             "employees": 24,
             "revenue_per_month": 120000.0,
-            "burn_rate": 85000.0,
             "cash_in_bank": 320000.0
         },
         "messages": [
@@ -127,6 +127,14 @@
             {
                 "role": "assistant",
                 "content": "Connection Error: HTTPConnectionPool(host='127.0.0.1', port=1235): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=1235): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it\")). Ensure your local server is running on port 1235 and 'v1/chat/completions' is enabled."
+            },
+            {
+                "role": "user",
+                "content": "wer"
+            },
+            {
+                "role": "assistant",
+                "content": "Connection Error: HTTPConnectionPool(host='127.0.0.1', port=1236): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001C7C36E4B10>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')). Ensure your local server is running on port 1235 and 'v1/chat/completions' is enabled."
             }
         ]
     },
@@ -329,12 +337,12 @@
         ]
     },
     "session-1783789781550-521ekbk": {
-        "last_updated": "2026-07-11T22:40:41.829962",
+        "last_updated": "2026-09-04T23:13:09.298678",
         "startup_data": {
             "name": "Nimbus Labs",
-            "revenue": 120000.0,
-            "burn": 85000.0,
-            "cash": 320000.0,
+            "revenue": 1500000000.0,
+            "burn": 85002.0,
+            "cash": 32000000000.0,
             "cogs": 24000.0,
             "opex": 61000.0,
             "ltv": 1200.0,
@@ -343,8 +351,8 @@
             "new_revenue_pm": 15000.0,
             "growth_rate": 12.0,
             "employees": 24,
-            "revenue_per_month": 120000.0,
-            "cash_in_bank": 320000.0
+            "revenue_per_month": 1500000000.0,
+            "cash_in_bank": 32000000000.0
         },
         "messages": [
             {
@@ -354,6 +362,22 @@
             {
                 "role": "assistant",
                 "content": "Connection Error: HTTPConnectionPool(host='127.0.0.1', port=1236): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=1236): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it\")). Ensure your local server is running on port 1235 and 'v1/chat/completions' is enabled."
+            },
+            {
+                "role": "user",
+                "content": "do u really see my dash board "
+            },
+            {
+                "role": "assistant",
+                "content": "Connection Error: HTTPConnectionPool(host='127.0.0.1', port=1236): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001C7C26F0490>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')). Ensure your local server is running on port 1235 and 'v1/chat/completions' is enabled."
+            },
+            {
+                "role": "user",
+                "content": "can u analyse the details of the "
+            },
+            {
+                "role": "assistant",
+                "content": "Connection Error: HTTPConnectionPool(host='127.0.0.1', port=1236): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001C7C36D3A90>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')). Ensure your local server is running on port 1235 and 'v1/chat/completions' is enabled."
             }
         ]
     }
